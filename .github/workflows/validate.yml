@@ -1,0 +1,24 @@
+name: Validate package sources
+on:
+  push:
+  pull_request:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native validation tools
+        run: pacman -Syu --noconfirm --needed python git
+      - name: Check launcher and PKGBUILD
+        run: |
+          bash -n PKGBUILD
+          python -m py_compile strata-inference
+          python -m unittest discover -s tests -v
+      - name: Check AUR metadata and source checksums
+        run: |
+          useradd -m builder
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+          runuser -u builder -- makepkg --printsrcinfo > .SRCINFO.generated
+          diff -u .SRCINFO .SRCINFO.generated
+          runuser -u builder -- makepkg --verifysource --noconfirm

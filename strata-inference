@@ -1,0 +1,122 @@
+#!/usr/bin/python
+"""Arch package launcher; no application self-installer or pip environment."""
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+
+APP = Path('/usr/lib/strata-inference')
+DATA = Path('/usr/share/strata-inference')
+MODELS = Path.home() / '.models'
+
+
+def tool(name, *args):
+    subprocess.run([sys.executable, str(APP / 'tools' / f'{name}.py'), *map(str, args)], check=True)
+
+
+def model_path(value):
+    path = Path(value).expanduser().resolve()
+    if not path.is_relative_to(MODELS.resolve()):
+        raise ValueError(f'Model files must be under {MODELS}')
+    return path
+
+
+def ple_shard(gguf):
+    sys.path.insert(0, str(APP / 'tools'))
+    from gguf_reader import GGUFFile
+    match = re.search(r'-00001-of-(\d{5})\.gguf$', gguf.name)
+    shards = [gguf] if not match else [
+        gguf.with_name(gguf.name[:match.start()] + f'-{i:05d}-of-{int(match[1]):05d}.gguf')
+        for i in range(1, int(match[1]) + 1)
+    ]
+    if any(not shard.is_file() for shard in shards):
+        raise ValueError('All GGUF shards must be present beside the first shard')
+    for shard in shards:
+        if any(t.name == 'per_layer_token_embd.weight' for t in GGUFFile(shard).tensors):
+            return shard
+    raise ValueError('No per_layer_token_embd.weight tensor; this model is not compatible Flash-Next')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    sub = parser.add_subparsers(dest='command', required=True)
+    serve = sub.add_parser('serve', help='Start the API server using a JSON configuration')
+    serve.add_argument('--config', required=True)
+    serve.add_argument('--port', type=int, default=8082)
+    serve.add_argument('--host', default='127.0.0.1')
+    serve.add_argument('--api-key', default=os.environ.get('STRATA_API_KEY', ''))
+    pack = sub.add_parser('prepare', help='Prepare an existing GGUF under ~/.models; no downloads')
+    pack.add_argument('gguf', help='First GGUF shard, with all other shards beside it')
+    pack.add_argument('--compat-bf16', action='store_true', help='Explicit conversion for compatible custom quants')
+    sub.add_parser('prepare-mtp', help='Download and prepare the original model draft head (~6 GB) under ~/.models')
+    config = sub.add_parser('configure', help='Write a server config for a prepared model')
+    config.add_argument('gguf')
+    config.add_argument('--context', type=int, default=131072)
+    args = parser.parse_args()
+
+    if args.command == 'serve':
+        if args.host not in ('127.0.0.1', 'localhost', '::1') and not args.api_key:
+            parser.error('--api-key is required when listening beyond localhost')
+        cfg = Path(args.config).expanduser().resolve(strict=True)
+        state = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state'))) / 'strata-inference'
+        state.mkdir(parents=True, exist_ok=True)
+        os.chdir(state)
+        os.execv(sys.executable, [sys.executable, str(APP / 'serve/server.py'), '--engine', 'strata',
+                                 '--config', str(cfg), '--port', str(args.port), '--host', args.host,
+                                 '--api-key', args.api_key])
+    elif args.command == 'prepare':
+        gguf = model_path(args.gguf)
+        if not gguf.is_file():
+            parser.error(f'Missing GGUF: {gguf}')
+        out = gguf.parent / 'strata/pack'
+        tool('iq_pack', '--gguf', gguf, '--out', out, *(['--compat-bf16'] if args.compat_bf16 else []))
+        print(f'Prepared model: {out}')
+    elif args.command == 'prepare-mtp':
+        mtp = MODELS / 'qwen3.8-flash-next-mtp/strata'
+        mtp.mkdir(parents=True, exist_ok=True)
+        tool('mtp_fetch', 'fetch', '--out', mtp / 'bf16')
+        tool('mtp_pack', '--src', mtp / 'bf16', '--experts', 'q2_0', '--out', mtp / 'mtp-q2_0.gguf')
+        tool('mtp_rt', '--gguf', mtp / 'mtp-q2_0.gguf', '--out', mtp / 'rt')
+        shutil.copy2(DATA / 'draft_vocab.bin', mtp / 'rt/draft_vocab.bin')
+        print(f'Prepared draft runtime: {mtp / "rt"}')
+    elif args.command == 'configure':
+        gguf = model_path(args.gguf)
+        pack = gguf.parent / 'strata/pack'
+        mtp = MODELS / 'qwen3.8-flash-next-mtp/strata/rt'
+        if not gguf.is_file() or not (pack / 'tokenizer').is_dir() or not mtp.is_dir():
+            parser.error('Run prepare and prepare-mtp first; the GGUF, tokenizer and MTP runtime are required')
+        if not 1 <= args.context <= 262144:
+            parser.error('Context must be between 1 and 262144; RoPE extensions require a manual config')
+        ple = ple_shard(gguf)
+        profiles = gguf.parent / 'strata'
+        shutil.copy2(DATA / 'expert-profile.bin', profiles / 'expert-profile.bin')
+        cfg_dir = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config'))) / 'strata-inference'
+        cfg_dir.mkdir(parents=True, exist_ok=True)
+        cfg = cfg_dir / f'{gguf.parent.name}.json'
+        if cfg.exists():
+            parser.error(f'Configuration already exists; edit it explicitly: {cfg}')
+        state = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state'))) / 'strata-inference'
+        state.mkdir(parents=True, exist_ok=True)
+        settings = {
+            'exe': '/usr/bin/strata-inference-engine',
+            'args': ['--pack', str(pack), '--native', str(gguf), '--ple-gguf', str(ple),
+                     '--expert-profile', str(profiles / 'expert-profile.bin'), '--expert-cache', 'auto',
+                     '--prefill', 'auto', '--spec', '4', '--spec-min-p', '0.5', '--mtp', str(mtp),
+                     '--max-context', str(args.context), '--kv', 'int8'],
+            'cwd': str(state), 'tokenizer': str(pack / 'tokenizer'),
+            'model_name': gguf.parent.name, 'log': str(state / f'{gguf.parent.name}.log'),
+            'host': '127.0.0.1', 'port': 8082,
+        }
+        cfg.write_text(json.dumps(settings, indent=2) + '\n')
+        print(cfg)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (ValueError, OSError, subprocess.CalledProcessError) as exc:
+        sys.exit(str(exc))
