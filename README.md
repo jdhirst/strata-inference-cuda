@@ -27,8 +27,8 @@ STRATA_CUDA_ARCHITECTURES=120 STRATA_BUILD_JOBS=8 makepkg -si
 
 This locally customized package will only support the specified GPU architecture.
 CUDA K-quant prompt kernels are enabled for supported Unsloth models.
-The initial package provides text inference; the optional vision encoder is not
-built. The pinned llama.cpp sources provide upstream's required ggml kernels and
+The package includes text and image inference with a CUDA vision encoder.
+The pinned llama.cpp sources provide upstream's required ggml kernels and
 gguf Python format support; system llama-server remains independent.
 
 ## Models
@@ -53,6 +53,30 @@ Configuration lives in `~/.config/strata-inference`; logs live in
 `~/.local/state/strata-inference`. XDG_CONFIG_HOME and XDG_STATE_HOME are respected.
 No service is enabled automatically. Stop other GPU model servers before loading
 if they occupy the required VRAM. Ctrl-C stops the foreground server.
+
+## Image input
+
+Put the matching vision projector GGUF beside your model under `~/.models`.
+When generating a new configuration, add `--mmproj`:
+
+```sh
+strata-inference configure ~/.models/qwen3.8-flash-next-gsq-rco-iq3-s/Qwen3.8-Flash-Next-GSQ-RCO-IQ3_S-00001-of-00002.gguf \
+  --mmproj ~/.models/qwen3.8-flash-next-gsq-rco-iq3-s/mmproj-Qwen3.8-Flash-Next-BF16.gguf
+```
+
+The model and projector must match and be supported by upstream. The launcher
+enables the engine's vision path, runs image encoding on CUDA, and reserves
+1400 MiB beyond the encoder's allocations for image-processing buffers. Image
+resolution is capped at 1024 image tokens by default; use `--vision-tokens N`
+to change it. Higher values can use more VRAM. Attach pictures in the web Chat
+page or send OpenAI-compatible image input through the API. Projectors are not
+downloaded by package installation.
+
+Existing configurations are preserved. To enable images in one, add a `vision`
+object with `exe` `/usr/bin/strata-inference-vision`, absolute `mmproj` and `model`
+paths, `gpu: true`, and `max_tokens: 1024`; append `--vision`,
+`--vram-reserve-mib`, `1400` to the engine's `args` array. Alternatively, back up
+the existing config and generate it again with `--mmproj`.
 
 For network access, specify both `--host 0.0.0.0` and `--api-key SECRET`.
 `STRATA_API_KEY` can supply the key without placing it in the shell history.

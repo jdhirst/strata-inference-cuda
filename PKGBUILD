@@ -1,7 +1,7 @@
 # Maintainer: jdhirst <jdhirst@hirstgroup.net>
 pkgname=strata-inference-cuda
 pkgver=0.1.39
-pkgrel=1
+pkgrel=2
 pkgdesc='Strata CUDA inference engine and local API server for Qwen3.8-Flash-Next'
 arch=('x86_64')
 url='https://github.com/Niko1221/Strata'
@@ -20,8 +20,8 @@ source=("strata-${pkgver}.tar.gz::https://github.com/Niko1221/Strata/archive/ref
         'LICENSE')
 sha256sums=('e949372b264d21e7267636b7262db4dd70c65474fbfacaa3d25296c468622247'
             'c076d7534afa0e5d0ec2a0d425b11e791c16f3de0d727221aea071cef156a280'
-            'bde9ce0fc12039f65e92586eff371b6ee38713690e9b14972444b67174bb23a1'
-            '43af7d6ddbedddcc60ac9b05ed8ac8bdb6c62016c01a4f2981441631ab3c4562'
+            'f6b898688d5cdc62fd974cb2ec25de8000a3e9f489b519ed7befa8d2d50cad9b'
+            '2ea45f9dbc9714494b24ba63a03a2e96995688249b194e34613c731c3f333a62'
             '3aa11484d0b26858dc8e662f17e88ad03e4184d55b69f9b5e29e6feddd999ab5')
 
 build() {
@@ -42,6 +42,18 @@ build() {
     -DCMAKE_INSTALL_RPATH=/opt/cuda/lib64 \
     -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON
   cmake --build build --target strata strata-device --parallel "${STRATA_BUILD_JOBS:-4}"
+  cmake -S "Strata-${pkgver}/tools/vision" -B build-vision -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DLLAMA_DIR="${srcdir}/llama.cpp-${_llama_commit}" \
+    -DSTRATA_VISION_CUDA=ON \
+    -DSTRATA_PORTABLE=ON \
+    -DCMAKE_CUDA_COMPILER=/opt/cuda/bin/nvcc \
+    -DCMAKE_CUDA_ARCHITECTURES="${STRATA_CUDA_ARCHITECTURES:-75;86;89;120}" \
+    -DCMAKE_CUDA_RUNTIME_LIBRARY=Shared \
+    -DCMAKE_BUILD_RPATH=/opt/cuda/lib64 \
+    -DCMAKE_INSTALL_RPATH=/opt/cuda/lib64 \
+    -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON
+  cmake --build build-vision --target strata-vision --parallel "${STRATA_BUILD_JOBS:-4}"
 }
 
 check() {
@@ -57,6 +69,7 @@ package() {
   local app="${pkgdir}/usr/lib/strata-inference"
   install -Dm755 build/strata "${pkgdir}/usr/bin/strata-inference-engine"
   install -Dm755 build/strata-device "${pkgdir}/usr/bin/strata-inference-device"
+  install -Dm755 build-vision/bin/strata-vision "${pkgdir}/usr/bin/strata-inference-vision"
   install -Dm755 strata-inference "${pkgdir}/usr/bin/strata-inference"
   install -d "${app}/third_party/llama.cpp"
   cp -r "${upstream}/serve" "${upstream}/tools" "${app}/"

@@ -56,6 +56,8 @@ def main():
     config = sub.add_parser('configure', help='Write a server config for a prepared model')
     config.add_argument('gguf')
     config.add_argument('--context', type=int, default=131072)
+    config.add_argument('--mmproj', help='Enable images with a matching vision projector GGUF under ~/.models')
+    config.add_argument('--vision-tokens', type=int, default=1024, help='Maximum image tokens (default: 1024)')
     args = parser.parse_args()
 
     if args.command == 'serve':
@@ -91,6 +93,11 @@ def main():
             parser.error('Run prepare and prepare-mtp first; the GGUF, tokenizer and MTP runtime are required')
         if not 1 <= args.context <= 262144:
             parser.error('Context must be between 1 and 262144; RoPE extensions require a manual config')
+        mmproj = model_path(args.mmproj) if args.mmproj else None
+        if mmproj and not mmproj.is_file():
+            parser.error(f'Missing vision projector: {mmproj}')
+        if args.vision_tokens < 1:
+            parser.error('--vision-tokens must be positive')
         ple = ple_shard(gguf)
         profiles = gguf.parent / 'strata'
         shutil.copy2(DATA / 'expert-profile.bin', profiles / 'expert-profile.bin')
@@ -111,6 +118,12 @@ def main():
             'model_name': gguf.parent.name, 'log': str(state / f'{gguf.parent.name}.log'),
             'host': '127.0.0.1', 'port': 8082,
         }
+        if mmproj:
+            settings['args'] += ['--vision', '--vram-reserve-mib', '1400']
+            settings['vision'] = {
+                'exe': '/usr/bin/strata-inference-vision', 'mmproj': str(mmproj),
+                'model': str(gguf), 'gpu': True, 'max_tokens': args.vision_tokens,
+            }
         cfg.write_text(json.dumps(settings, indent=2) + '\n')
         print(cfg)
 

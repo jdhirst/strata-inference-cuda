@@ -103,6 +103,26 @@ class LauncherTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             launcher.ple_shard(first)
 
+    def test_image_config_connects_matching_projector_and_reserves_vram(self):
+        gguf = self.prepared()
+        projector = gguf.parent / 'mmproj.gguf'
+        projector.touch()
+        self.call('configure', gguf, '--mmproj', projector, '--vision-tokens', '2048')
+        config = self.root / 'config/strata-inference/example-iq3-s.json'
+        settings = json.loads(config.read_text())
+        self.assertEqual(settings['vision'], {
+            'exe': '/usr/bin/strata-inference-vision', 'model': str(gguf.resolve()),
+            'mmproj': str(projector.resolve()), 'gpu': True, 'max_tokens': 2048,
+        })
+        self.assertIn('--vision', settings['args'])
+        self.assertEqual(settings['args'][settings['args'].index('--vram-reserve-mib') + 1], '1400')
+
+    def test_missing_projector_does_not_write_configuration(self):
+        gguf = self.prepared()
+        with self.assertRaises(SystemExit):
+            self.call('configure', gguf, '--mmproj', gguf.parent / 'missing.gguf')
+        self.assertFalse((self.root / 'config/strata-inference/example-iq3-s.json').exists())
+
 
 if __name__ == '__main__':
     unittest.main()

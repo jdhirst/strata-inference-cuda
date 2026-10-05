@@ -1,7 +1,7 @@
 pkgbase = strata-inference-cuda
 	pkgdesc = Strata CUDA inference engine and local API server for Qwen3.8-Flash-Next
 	pkgver = 0.1.39
-	pkgrel = 1
+	pkgrel = 2
 	url = https://github.com/Niko1221/Strata
 	arch = x86_64
 	license = MIT
@@ -28,8 +28,8 @@ pkgbase = strata-inference-cuda
 	source = LICENSE
 	sha256sums = e949372b264d21e7267636b7262db4dd70c65474fbfacaa3d25296c468622247
 	sha256sums = c076d7534afa0e5d0ec2a0d425b11e791c16f3de0d727221aea071cef156a280
-	sha256sums = bde9ce0fc12039f65e92586eff371b6ee38713690e9b14972444b67174bb23a1
-	sha256sums = 43af7d6ddbedddcc60ac9b05ed8ac8bdb6c62016c01a4f2981441631ab3c4562
+	sha256sums = f6b898688d5cdc62fd974cb2ec25de8000a3e9f489b519ed7befa8d2d50cad9b
+	sha256sums = 2ea45f9dbc9714494b24ba63a03a2e96995688249b194e34613c731c3f333a62
 	sha256sums = 3aa11484d0b26858dc8e662f17e88ad03e4184d55b69f9b5e29e6feddd999ab5
 
 pkgname = strata-inference-cuda
