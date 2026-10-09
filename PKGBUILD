@@ -1,7 +1,7 @@
 # Maintainer: jdhirst <jdhirst@hirstgroup.net>
 pkgname=strata-inference-cuda
-pkgver=0.1.39
-pkgrel=2
+pkgver=0.1.41
+pkgrel=1
 pkgdesc='Strata CUDA inference engine and local API server for Qwen3.8-Flash-Next'
 arch=('x86_64')
 url='https://github.com/Niko1221/Strata'
@@ -18,10 +18,10 @@ source=("strata-${pkgver}.tar.gz::https://github.com/Niko1221/Strata/archive/ref
         'strata-inference'
         'README.md'
         'LICENSE')
-sha256sums=('e949372b264d21e7267636b7262db4dd70c65474fbfacaa3d25296c468622247'
+sha256sums=('ab48b29e6c9177b339bddc3479621d193c4116105901d419f7df7f4edea89be2'
             'c076d7534afa0e5d0ec2a0d425b11e791c16f3de0d727221aea071cef156a280'
             'f6b898688d5cdc62fd974cb2ec25de8000a3e9f489b519ed7befa8d2d50cad9b'
-            '2ea45f9dbc9714494b24ba63a03a2e96995688249b194e34613c731c3f333a62'
+            'd31ed2b1d9a27324af878f2df3de4f04a9047f704394943bca4cf23fd010b183'
             '3aa11484d0b26858dc8e662f17e88ad03e4184d55b69f9b5e29e6feddd999ab5')
 
 build() {

@@ -31,6 +31,35 @@ The package includes text and image inference with a CUDA vision encoder.
 The pinned llama.cpp sources provide upstream's required ggml kernels and
 gguf Python format support; system llama-server remains independent.
 
+## Package updates through paru
+
+No AUR account is needed. Add this GitHub PKGBUILD repository to
+`~/.config/paru/paru.conf`:
+
+```ini
+[strata]
+Url = https://github.com/jdhirst/strata-inference-cuda.git
+Depth = 1
+```
+
+Normal `paru -Syu` checks this repository and offers newer versions of the same
+`strata-inference-cuda` package. Model files and the user's configuration are
+separate from the package. Keep an older `.pkg.tar.zst` for rollback with
+`sudo pacman -U /path/to/package.pkg.tar.zst`.
+
+The tagged-release workflow checks upstream every six hours and can also be run
+manually in GitHub Actions. It follows stable numeric version tags, including
+four-part hotfix tags, skips prerelease tags and never downgrades. It updates
+the source checksums, the release's pinned llama.cpp dependency and `.SRCINFO`,
+then validates the launcher, metadata and source checksums before publishing.
+It does not run the upstream installer or download models.
+
+These automated checks do not compile CUDA or test GPU inference. A tagged
+release can still introduce regressions or require changes to this build recipe;
+failed source checks stop publication, and build failures stop installation.
+Locally, `python tools/update_release.py --check` reports an available update;
+without `--check`, it updates the packaging files using native makepkg.
+
 ## Models
 
 Models are deliberately separate from the package. Put all GGUF shards together

@@ -1,0 +1,41 @@
+name: Track tagged Strata releases
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: tagged-release-update
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Install native validation tools
+        run: pacman -Syu --noconfirm --needed python git
+      - name: Update release and validate package sources
+        run: |
+          useradd -m builder
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+          runuser -u builder -- python tools/update_release.py
+          bash -n PKGBUILD
+          python -m unittest discover -s tests -v
+          runuser -u builder -- makepkg --printsrcinfo > .SRCINFO.generated
+          diff -u .SRCINFO .SRCINFO.generated
+          runuser -u builder -- makepkg --verifysource --noconfirm
+      - name: Publish validated package metadata
+        run: |
+          if git diff --quiet -- PKGBUILD .SRCINFO; then
+            echo 'No new tagged release.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add PKGBUILD .SRCINFO
+          git commit -m "Update Strata to $(sed -n 's/^pkgver=//p' PKGBUILD)"
+          git push origin HEAD:main
