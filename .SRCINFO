@@ -1,12 +1,13 @@
 pkgbase = strata-inference-cuda
 	pkgdesc = Strata CUDA inference engine and local API server for Qwen3.8-Flash-Next
-	pkgver = 0.1.41
+	pkgver = 0.1.41.r1552.gfb58e0db
 	pkgrel = 1
 	url = https://github.com/Niko1221/Strata
 	arch = x86_64
 	license = MIT
 	makedepends = cmake
 	makedepends = ninja
+	makedepends = git
 	depends = cuda>=13
 	depends = gcc-libs
 	depends = glibc
@@ -21,15 +22,15 @@ pkgbase = strata-inference-cuda
 	depends = python-psutil
 	optdepends = nvidia-utils: NVIDIA driver and GPU monitoring
 	options = !lto
-	source = strata-0.1.41.tar.gz::https://github.com/Niko1221/Strata/archive/refs/tags/v0.1.41.tar.gz
-	source = llama.cpp-3cf03257f219afbe7334045ff7c6a06ac68c627d.tar.gz::https://github.com/ggml-org/llama.cpp/archive/3cf03257f219afbe7334045ff7c6a06ac68c627d.tar.gz
+	source = strata::git+https://github.com/Niko1221/Strata.git#branch=main
+	source = llama.cpp::git+https://github.com/ggml-org/llama.cpp.git#branch=master
 	source = strata-inference
 	source = README.md
 	source = LICENSE
-	sha256sums = ab48b29e6c9177b339bddc3479621d193c4116105901d419f7df7f4edea89be2
-	sha256sums = c076d7534afa0e5d0ec2a0d425b11e791c16f3de0d727221aea071cef156a280
+	sha256sums = SKIP
+	sha256sums = SKIP
 	sha256sums = f6b898688d5cdc62fd974cb2ec25de8000a3e9f489b519ed7befa8d2d50cad9b
-	sha256sums = d31ed2b1d9a27324af878f2df3de4f04a9047f704394943bca4cf23fd010b183
+	sha256sums = 87233fc184aa1397bc6f2c56dfa5ada20433638ea712560b465dbda196391d84
 	sha256sums = 3aa11484d0b26858dc8e662f17e88ad03e4184d55b69f9b5e29e6feddd999ab5
 
 pkgname = strata-inference-cuda

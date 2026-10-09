@@ -4,3 +4,5 @@
 /*.pkg.tar.*
 /*.log
 __pycache__/
+/strata/
+/llama.cpp/

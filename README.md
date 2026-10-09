@@ -1,8 +1,9 @@
 # strata-inference-cuda
 
 Arch Linux / CachyOS packaging for [Strata](https://github.com/Niko1221/Strata),
-the CUDA local inference engine for Qwen3.8-Flash-Next. Package sources are
-versioned and checksummed; the engine is built by makepkg and managed by pacman.
+the CUDA local inference engine for Qwen3.8-Flash-Next. Strata sources track
+upstream main; local packaging files are checksummed. The engine is built by
+makepkg and managed by pacman.
 Python, CUDA and build tools come from native repositories. No pip, virtualenv,
 self-updater, model downloads, or running services are invoked by installation.
 
@@ -47,18 +48,26 @@ Normal `paru -Syu` checks this repository and offers newer versions of the same
 separate from the package. Keep an older `.pkg.tar.zst` for rollback with
 `sudo pacman -U /path/to/package.pkg.tar.zst`.
 
-The tagged-release workflow checks upstream every six hours and can also be run
-manually in GitHub Actions. It follows stable numeric version tags, including
-four-part hotfix tags, skips prerelease tags and never downgrades. It updates
-the source checksums, the release's pinned llama.cpp dependency and `.SRCINFO`,
-then validates the launcher, metadata and source checksums before publishing.
-It does not run the upstream installer or download models.
+This same package now tracks Strata's `main` branch using native makepkg Git
+sources and `pkgver()`. In paru's existing `[options]` section enable:
 
-These automated checks do not compile CUDA or test GPU inference. A tagged
-release can still introduce regressions or require changes to this build recipe;
-failed source checks stop publication, and build failures stop installation.
-Locally, `python tools/update_release.py --check` reports an available update;
-without `--check`, it updates the packaging files using native makepkg.
+```ini
+Devel
+DevelSuffixes = -git -cvs -svn -bzr -darcs -always -hg -fossil strata-inference-cuda
+IgnoreDevelSource = https://github.com/ggml-org/llama.cpp.git
+```
+
+The extra development suffix preserves the existing package name. Paru records
+upstream Git revisions when it builds the package and offers rebuilds for new
+Strata commits on `paru -Syu`. No schedule, wrapper or update script is needed.
+Install this Git-backed version once with `paru -S strata/strata-inference-cuda`
+to initialise commit tracking. The build checks out the llama.cpp commit pinned
+by the selected Strata revision; unrelated llama.cpp commits do not trigger
+updates. Versions include the upstream project version, commit count and hash.
+
+Main is development code and can regress. Source checks and launcher tests do
+not establish GPU inference quality. Keep the previous package for rollback;
+a failing build leaves the installed package in place.
 
 ## Models
 

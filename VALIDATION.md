@@ -1,5 +1,28 @@
 # Validation
 
+## Git branch packaging, 2026-10-09
+
+- Replaced the scheduled tagged-release workflow and updater script with native
+  makepkg Git sources, `prepare()` and `pkgver()`. The package name is unchanged.
+- Built Strata main at fb58e0dbc8399662c0e47c76578c6e878b14f6cf as
+  `0.1.41.r1552.gfb58e0db-1`, using its pinned llama.cpp commit
+  3cf03257f219afbe7334045ff7c6a06ac68c627d.
+- The text engine compiled for CUDA architectures 75/86/89/120. The completed
+  package builds text and vision for CUDA architecture 120, using 16 build jobs.
+  The attempted portable vision build was stopped to use this machine's GPU
+  architecture, not because of a compiler failure. The shared recipe retains
+  portable defaults; paru's native environment settings select local targets.
+- Eight launcher tests and nine upstream runconfig tests passed. Bash syntax,
+  local source checksums and .SRCINFO consistency checks passed. Git sources
+  use makepkg's standard SKIP checksum handling.
+- The packaged device executable detected the RTX 5090. Text and vision help
+  commands ran, and native shared-library dependencies resolved.
+- Existing production service remained active. Installation requires the user's
+  sudo password; install through paru once to initialise native commit tracking.
+  No model downloads, real-model inference checks or quality benchmarks were
+  performed for this package update. These checks do not establish that future
+  main-branch commits are regression-free.
+
 Validated locally on 2026-10-05 with CachyOS, Ryzen 9 9950X3D, RTX 5090,
 192 GB installed RAM, CUDA 13.4.2, GCC 16.2.1 and Python 3.14.7.
 
